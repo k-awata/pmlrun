@@ -1,0 +1,210 @@
+-----------------------------------------------------------------------
+--
+-- Copyright (c) 2022 K.Awata
+--
+-- File:        pmlrun.pmlfrm
+-- Type:        Form Definition
+-- Module:      General Application
+-- Description: Provides one click shortcuts to run PML macro files.
+--
+-----------------------------------------------------------------------
+
+setup form !!pmlrun varchars dialog dock right
+    member .undo       is UNDOABLE
+    member .menuIsOpen is BOOLEAN
+    member .dir        is FILE
+    member .editor     is STRING
+    member .runext     is STRING
+    text   .txtArgs  tagwid 5 'Args' anchor t+l+r width 47 is STRING
+    toggle .tglDots  tagwid 7 'Show All' anchor t+r callback '!this.Init()'
+    list   .lstFiles anchor all at xmin.txtArgs ymax call '!this.OnClickList(' width 60 length 40
+    track  'DBCHANGED' 'DESICE' 'CATACE' 'PROPCE' 'ISODCE' 'PADDCE' 'DICTCE' call '!this.Track('
+exit
+
+-----------------------------------------------------------------------
+--
+-- Method:     .pmlrun()
+
+-- Description: Constructor
+--
+-----------------------------------------------------------------------
+define method .pmlrun()
+    !this.formtitle = 'PML Runner'
+    !this.callback  = '!this.Init()'
+    !menu = !this.NewMenu('menu')
+    !menu.callback = '!this.BeforePopupMenu()'
+    !menu.Add('CALLBACK', 'Open...', '!this.OpenFile()')
+    !menu.Add('CALLBACK', 'Run', '!this.RunFile()')
+    !menu.Add('SEPARATOR')
+    !menu.Add('CALLBACK', 'Open Folder...', '!this.OpenRootDir()')
+    !menu.Add('CALLBACK', 'Refresh', '!this.Init()')
+    !this.lstFiles.SetPopup(!menu)
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .Init()
+--
+-- Description: Initialize this form.
+--
+-----------------------------------------------------------------------
+define method .Init()
+    !this.undo = object UNDOABLE()
+    !initFile = object FILE('%userprofile%\.pmlrun\.init')
+    var !evar evar 'pmlrun'
+    if !evar ne '' then
+        !initFile = object FILE(!evar + '\.init')
+    endif
+    if not !initFile.Exists() then
+        !dir = !initFile.PathName()
+        syscom |if not exist "$!dir" mkdir "$!dir"|
+        !buf = object ARRAY()
+        !buf.Append(|!!pmlrun.editor = 'start ""'|)
+        !buf.Append(|!!pmlrun.runext = '.mac'|)
+        !buf.Append(|$$SMAC=$$M"$!dir\$$S1.mac"|)
+        !initFile.WriteFile('OVERWRITE', !buf)
+    endif
+    $M"$!initFile"
+    !this.menuIsOpen = false
+    !this.dir = !initFile.Directory()
+    !this.lstFiles.Clear()
+    !this.LoadDir(!this.dir, 0)
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .Track(!form is FORM, !event is STRING)
+--
+-- Description: Run macro that is the same as event name with prefix "." dot.
+--
+-----------------------------------------------------------------------
+define method .Track(!form is FORM, !event is STRING)
+    !file = object FILE(!this.dir.Name() + '\.' + !event)
+    if !file.Exists() then
+        $M"$!file"
+    endif
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .LoadDir(!dir is FILE, !indent is REAL)
+--
+-- Description: Populate macro files list from the specified directory.
+--
+-----------------------------------------------------------------------
+define method .LoadDir(!dir is FILE, !indent is REAL)
+    do !f values !dir.SubDirs()
+        !name = !f.Entry()
+        skip if not !this.tglDots.val and !name.Substring(1, 1) eq '.'
+        var !dtext compose space $!indent |$!name/|
+        skip if !dtext.Empty()
+        !this.lstFiles.Add(!dtext[1], !f.Name())
+        !this.LoadDir(!f, !indent + 4)
+    enddo
+    do !f values !dir.Files()
+        !name = !f.Entry()
+        skip if not !this.tglDots.val and !name.Substring(1, 1) eq '.'
+        if !name.MatchWild('*' + !this.runext) then
+            !name = !name.Replace(!this.runext, '', -1, 1)
+        endif
+        var !dtext compose space $!indent |$!name|
+        skip if !dtext.Empty()
+        !this.lstFiles.Add(!dtext[1], !f.Name())
+    enddo
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .BeforePopupMenu()
+--
+-- Description: Callback before opening right click menu
+--
+-----------------------------------------------------------------------
+define method .BeforePopupMenu()
+    !this.menuIsOpen = true
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .OnClickList(!gadget is GADGET, !select is STRING)
+--
+-- Description: Callback on click a row in the list
+--
+-----------------------------------------------------------------------
+define method .OnClickList(!gadget is GADGET, !select is STRING)
+    if !select ne 'SELECT' then
+        return
+    endif
+    if !this.menuIsOpen then
+        !this.menuIsOpen = false
+        return
+    endif
+    !file = object FILE(|$!gadget|)
+    if not !file.Exists() then
+        !this.Init()
+        return
+    endif
+    if !file.Type() eq 'FILE' then
+        if !file.Entry().MatchWild('*' + !this.runext) then
+            !this.undo.Add()
+            $M"$!file" $!this.txtArgs.val
+            !this.undo.EndUndoable()
+        else
+            syscom |$!this.editor "$!file"|
+        endif
+    endif
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .RunFile()
+--
+-- Description: Run the selection macro file in the list.
+--
+-----------------------------------------------------------------------
+define method .RunFile()
+    !file = object FILE(!this.lstFiles.Selection())
+    if Unset(!file) then
+        return
+    endif
+    if not !file.Exists() then
+        !this.Init()
+        return
+    endif
+    if !file.Type() ne 'FILE' then
+        return
+    endif
+    !this.undo.Add()
+    $M"$!file" $!this.txtArgs.val
+    !this.undo.Endundoable()
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .OpenFile()
+--
+-- Description: Open the selection file in the list.
+--
+-----------------------------------------------------------------------
+define method .OpenFile()
+    !file = object FILE(!this.lstFiles.Selection())
+    if Unset(!file) then
+        return
+    endif
+    if not !file.Exists() then
+        !this.Init()
+        return
+    endif
+    syscom |$!this.editor "$!file"|
+endmethod
+
+-----------------------------------------------------------------------
+--
+-- Method:     .OpenRootDir()
+--
+-- Description: Open the root directory.
+--
+-----------------------------------------------------------------------
+define method .OpenRootDir()
+    syscom |$!this.editor "$!this.dir"|
+endmethod
