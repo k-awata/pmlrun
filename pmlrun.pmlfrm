@@ -12,7 +12,7 @@
 setup form !!pmlrun varchars dialog dock right
     member .undo       is UNDOABLE
     member .menuIsOpen is BOOLEAN
-    member .dir        is FILE
+    member .dirs       is ARRAY
     member .editor     is STRING
     member .runext     is STRING
     text   .txtArgs  tagwid 5 'Args' anchor t+l+r width 22 is STRING
@@ -24,7 +24,7 @@ exit
 -----------------------------------------------------------------------
 --
 -- Method:     .pmlrun()
-
+--
 -- Description: Constructor
 --
 -----------------------------------------------------------------------
@@ -36,7 +36,6 @@ define method .pmlrun()
     !menu.Add('CALLBACK', 'Open...', '!this.OpenFile()')
     !menu.Add('CALLBACK', 'Run', '!this.RunFile()')
     !menu.Add('SEPARATOR')
-    !menu.Add('CALLBACK', 'Open Folder...', '!this.OpenRootDir()')
     !menu.Add('CALLBACK', 'Refresh', '!this.Init()')
     !this.lstFiles.SetPopup(!menu)
 endmethod
@@ -50,25 +49,32 @@ endmethod
 -----------------------------------------------------------------------
 define method .Init()
     !this.undo = object UNDOABLE()
-    !initFile = object FILE('%userprofile%\.pmlrun\.init')
-    var !evar evar 'pmlrun'
-    if !evar ne '' then
-        !initFile = object FILE(!evar + '\.init')
-    endif
-    if not !initFile.Exists() then
-        !dir = !initFile.PathName()
-        syscom |if not exist "$!dir" mkdir "$!dir"|
-        !buf = object ARRAY()
-        !buf.Append(|!!pmlrun.editor = 'start ""'|)
-        !buf.Append(|!!pmlrun.runext = '.mac'|)
-        !buf.Append(|$$SMAC=$$M"$!dir\$$S1.mac"|)
-        !initFile.WriteFile('OVERWRITE', !buf)
-    endif
-    $M"$!initFile"
     !this.menuIsOpen = false
-    !this.dir = !initFile.Directory()
+    !this.editor = 'start ""'
+    !this.runext = '.mac'
+    var !evar evar 'pmlrun'
+    if !evar eq '' then
+        !evar = '%userprofile%\.pmlrun'
+    endif
+    !this.dirs.Clear()
+    do !dirname values !evar.Split(';')
+        !dir = object FILE(!dirname)
+        syscom |if not exist "$!dir" mkdir "$!dir"|
+        skip if !dir.Type() ne 'DIRECTORY'
+        handle any
+            skip
+        endhandle
+        !this.dirs.Append(object FILE(!dir.PathName() + '\' + !dir.Entry()))
+    enddo
     !this.lstFiles.Clear()
-    !this.LoadDir(!this.dir, 0)
+    do !dir values !this.dirs
+        !this.lstFiles.Add(!dir.Name(), !dir.Name())
+        !this.PopulateDir(!dir, 4)
+        !init = object FILE(!dir.Name() + '\.init')
+        if !init.Exists() then
+            $M"$!init"
+        endif
+    enddo
 endmethod
 
 -----------------------------------------------------------------------
@@ -79,27 +85,29 @@ endmethod
 --
 -----------------------------------------------------------------------
 define method .Track(!form is FORM, !event is STRING)
-    !file = object FILE(!this.dir.Name() + '\.' + !event)
-    if !file.Exists() then
-        $M"$!file"
-    endif
+    do !dir values !this.dirs
+        !file = object FILE(!dir.Name() + '\.' + !event)
+        if !file.Exists() then
+            $M"$!file"
+        endif
+    enddo
 endmethod
 
 -----------------------------------------------------------------------
 --
--- Method:     .LoadDir(!dir is FILE, !indent is REAL)
+-- Method:     .PopulateDir(!dir is FILE, !indent is REAL)
 --
 -- Description: Populate macro files list from the specified directory.
 --
 -----------------------------------------------------------------------
-define method .LoadDir(!dir is FILE, !indent is REAL)
+define method .PopulateDir(!dir is FILE, !indent is REAL)
     do !f values !dir.SubDirs()
         !name = !f.Entry()
         skip if not !this.tglDots.val and !name.Substring(1, 1) eq '.'
         var !dtext compose space $!indent |$!name/|
         skip if !dtext.Empty()
         !this.lstFiles.Add(!dtext[1], !f.Name())
-        !this.LoadDir(!f, !indent + 4)
+        !this.PopulateDir(!f, !indent + 2)
     enddo
     do !f values !dir.Files()
         !name = !f.Entry()
@@ -107,7 +115,7 @@ define method .LoadDir(!dir is FILE, !indent is REAL)
         if !name.MatchWild('*' + !this.runext) then
             !name = !name.Replace(!this.runext, '', -1, 1)
         endif
-        var !dtext compose space $!indent |$!name|
+        var !dtext compose space $!indent |- $!name|
         skip if !dtext.Empty()
         !this.lstFiles.Add(!dtext[1], !f.Name())
     enddo
@@ -196,15 +204,4 @@ define method .OpenFile()
         return
     endif
     syscom |$!this.editor "$!file"|
-endmethod
-
------------------------------------------------------------------------
---
--- Method:     .OpenRootDir()
---
--- Description: Open the root directory.
---
------------------------------------------------------------------------
-define method .OpenRootDir()
-    syscom |$!this.editor "$!this.dir"|
 endmethod

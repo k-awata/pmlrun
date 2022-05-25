@@ -28,13 +28,13 @@ show !!pmlrun
 
 ### Initialization
 
-When PML Runner form opens, PML Runner runs a file `.init` in the directory `%userprofile%\.pmlrun`. If it doesn't exist, it is automatically created. Additionally, you can change the directory by setting your desired path to the `PMLRUN` environment variable.
+When PML Runner form opens, PML Runner runs files `.init` in directories specified by the `PMLRUN` environment variable. If the environment variable is not defined, the directory is `%userprofile%\.pmlrun`.
 
-### Form
+### Form Controls
 
 - File List
 
-  This list shows the files and subfolders in the same directory as the `.init` file. You can click a file with the extension `.mac` to run it.
+  This list shows the files and subfolders in directories specified by the `PMLRUN` environment variable. You can click a file with the extension `.mac` to run it.
 
 - Args Textbox
 
