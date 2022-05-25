@@ -58,7 +58,8 @@ define method .Init()
     endif
     !this.dirs.Clear()
     do !dirname values !evar.Split(';')
-        !dir = object FILE(!dirname)
+        skip if !dirname.Trim() eq ''
+        !dir = object FILE(!dirname.Trim())
         syscom |if not exist "$!dir" mkdir "$!dir"|
         skip if !dir.Type() ne 'DIRECTORY'
         handle any
