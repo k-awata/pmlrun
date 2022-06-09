@@ -69,7 +69,7 @@ define method .Init()
     enddo
     !this.lstFiles.Clear()
     do !dir values !this.dirs
-        !this.lstFiles.Add(!dir.Name(), !dir.Name())
+        !this.lstFiles.Add('[' + !dir.Name() + ']', !dir.Name())
         !this.PopulateDir(!dir, 2)
         !init = object FILE(!dir.Name() + '\.init')
         if !init.Exists() then
