@@ -1,14 +1,24 @@
------------------------------------------------------------------------
---
 -- Copyright (c) 2022 K.Awata
---
--- File:        pmlrun.pmlfrm
--- Type:        Form Definition
--- Module:      General Application
--- Description: Provides one click shortcuts to run PML macro files.
---
------------------------------------------------------------------------
+-- 
+-- Permission is hereby granted, free of charge, to any person obtaining a copy
+-- of this software and associated documentation files (the "Software"), to deal
+-- in the Software without restriction, including without limitation the rights
+-- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-- copies of the Software, and to permit persons to whom the Software is
+-- furnished to do so, subject to the following conditions:
+-- 
+-- The above copyright notice and this permission notice shall be included in all
+-- copies or substantial portions of the Software.
+-- 
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+-- SOFTWARE.
 
+-- Form !!pmlrun provides one click shortcuts to run PML macro files.
 setup form !!pmlrun varchars dialog dock right
     member .undo       is UNDOABLE
     member .menuIsOpen is BOOLEAN
@@ -21,13 +31,7 @@ setup form !!pmlrun varchars dialog dock right
     track  'DBCHANGED' 'DESICE' 'CATACE' 'PROPCE' 'ISODCE' 'PADDCE' 'DICTCE' call '!this.Track('
 exit
 
------------------------------------------------------------------------
---
--- Method:     .pmlrun()
---
--- Description: Constructor
---
------------------------------------------------------------------------
+-- Constructor sets default values for the members.
 define method .pmlrun()
     !this.formtitle = 'PML Runner'
     !this.callback  = '!this.Init()'
@@ -40,13 +44,7 @@ define method .pmlrun()
     !this.lstFiles.SetPopup(!menu)
 endmethod
 
------------------------------------------------------------------------
---
--- Method:     .Init()
---
--- Description: Initialize this form.
---
------------------------------------------------------------------------
+-- Init initializes this form.
 define method .Init()
     !this.undo = object UNDOABLE()
     !this.menuIsOpen = false
@@ -78,13 +76,7 @@ define method .Init()
     enddo
 endmethod
 
------------------------------------------------------------------------
---
--- Method:     .Track(!form is FORM, !event is STRING)
---
--- Description: Run macro that is the same as event name with prefix "." dot.
---
------------------------------------------------------------------------
+-- Track runs macro that is the same as event name with prefix "." dot.
 define method .Track(!form is FORM, !event is STRING)
     do !dir values !this.dirs
         !file = object FILE(!dir.Name() + '\.' + !event)
@@ -94,13 +86,7 @@ define method .Track(!form is FORM, !event is STRING)
     enddo
 endmethod
 
------------------------------------------------------------------------
---
--- Method:     .PopulateDir(!dir is FILE, !indent is REAL)
---
--- Description: Populate macro files list from the specified directory.
---
------------------------------------------------------------------------
+-- PopulateDir populates macro files list from the specified directory.
 define method .PopulateDir(!dir is FILE, !indent is REAL)
     do !f values !dir.SubDirs()
         !name = !f.Entry()
@@ -122,24 +108,12 @@ define method .PopulateDir(!dir is FILE, !indent is REAL)
     enddo
 endmethod
 
------------------------------------------------------------------------
---
--- Method:     .BeforePopupMenu()
---
--- Description: Callback before opening right click menu
---
------------------------------------------------------------------------
+-- BeforePopupMenu is a callback method before opening right click menu.
 define method .BeforePopupMenu()
     !this.menuIsOpen = true
 endmethod
 
------------------------------------------------------------------------
---
--- Method:     .OnClickList(!gadget is GADGET, !select is STRING)
---
--- Description: Callback on click a row in the list
---
------------------------------------------------------------------------
+-- OnClickList is a callback method on click a row in the list.
 define method .OnClickList(!gadget is GADGET, !select is STRING)
     if !select ne 'SELECT' then
         return
@@ -164,13 +138,7 @@ define method .OnClickList(!gadget is GADGET, !select is STRING)
     endif
 endmethod
 
------------------------------------------------------------------------
---
--- Method:     .RunFile()
---
--- Description: Run the selection macro file in the list.
---
------------------------------------------------------------------------
+-- RunFile runs the selection macro file in the list.
 define method .RunFile()
     !file = object FILE(!this.lstFiles.Selection())
     if Unset(!file) then
@@ -188,13 +156,7 @@ define method .RunFile()
     !this.undo.Endundoable()
 endmethod
 
------------------------------------------------------------------------
---
--- Method:     .OpenFile()
---
--- Description: Open the selection file in the list.
---
------------------------------------------------------------------------
+-- OpenFile opens the selection file in the list.
 define method .OpenFile()
     !file = object FILE(!this.lstFiles.Selection())
     if Unset(!file) then
