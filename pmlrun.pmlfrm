@@ -25,8 +25,8 @@ setup form !!pmlrun varchars dialog dock right
     member .dirs       is ARRAY
     member .editor     is STRING
     member .runext     is STRING
-    text   .txtArgs  tagwid 5 'Args' anchor t+l+r width 22 is STRING
-    toggle .tglDots  tagwid 7 'Show All' anchor t+r callback '!this.Init()'
+    text   .txtArgs  tagwid 4 'Args' anchor t+l+r width 27 is STRING
+    toggle .tglDots  tagwid 3 'All' anchor t+r callback '!this.Init()'
     list   .lstFiles anchor all at xmin.txtArgs ymax call '!this.OnClickList(' width 36 length 16
     track  'DBCHANGED' 'DESICE' 'CATACE' 'PROPCE' 'ISODCE' 'PADDCE' 'DICTCE' call '!this.Track('
 exit

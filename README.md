@@ -40,6 +40,6 @@ When PML Runner form opens, PML Runner runs files `.init` in directories specifi
 
   When PML Runner runs a macro file, it uses this box value as the arguments.
 
-- Show All Checkbox
+- All Checkbox
 
   If this box is selected, files and subfolders whose names begin with `.` appear in the list.
