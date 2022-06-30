@@ -26,9 +26,9 @@ setup form !!pmlrun varchars dialog dock right
     member .editor     is STRING
     member .runext     is STRING
     text   .txtArgs  tagwid 4 'Args' anchor t+l+r width 27 is STRING
-    toggle .tglDots  tagwid 3 'All' anchor t+r callback '!this.Init()'
-    list   .lstFiles anchor all at xmin.txtArgs ymax call '!this.OnClickList(' width 36 length 16
-    track  'DBCHANGED' 'DESICE' 'CATACE' 'PROPCE' 'ISODCE' 'PADDCE' 'DICTCE' call '!this.Track('
+    toggle .tglDots  tagwid 3 'All' anchor t+r callback '!this.refreshList()'
+    list   .lstFiles anchor all at xmin.txtArgs ymax call '!this.onClickList(' width 36 length 16
+    track  'DBCHANGED' 'DESICE' 'CATACE' 'PROPCE' 'ISODCE' 'PADDCE' 'DICTCE' call '!this.track('
 exit
 
 -- Constructor sets default values for the members.
@@ -36,9 +36,9 @@ define method .pmlrun()
     !this.formtitle = 'PML Runner'
     !this.callback  = '!this.Init()'
     !menu = !this.NewMenu('menu')
-    !menu.callback = '!this.BeforePopupMenu()'
-    !menu.Add('CALLBACK', 'Open...', '!this.OpenFile()')
-    !menu.Add('CALLBACK', 'Run', '!this.RunFile()')
+    !menu.callback = '!this.beforePopupMenu()'
+    !menu.Add('CALLBACK', 'Open...', '!this.OpenFile(!this.lstFiles.Selection())')
+    !menu.Add('CALLBACK', 'Run', '!this.RunFile(!this.lstFiles.Selection())')
     !menu.Add('SEPARATOR')
     !menu.Add('CALLBACK', 'Refresh', '!this.Init()')
     !this.lstFiles.SetPopup(!menu)
@@ -54,6 +54,12 @@ define method .Init()
     if !evar eq '' then
         !evar = '%userprofile%\.pmlrun'
     endif
+    !this.loadEvar(!evar)
+    !this.refreshList()
+endmethod
+
+-- loadEvar sets directories to store macro files from a STRING separated by semicolon.
+define method .loadEvar(!evar is STRING)
     !this.dirs.Clear()
     do !dirname values !evar.Split(';')
         skip if !dirname.Trim() eq ''
@@ -65,10 +71,14 @@ define method .Init()
         endhandle
         !this.dirs.Append(object FILE(!dir.PathName() + '\' + !dir.Entry()))
     enddo
+endmethod
+
+-- refreshList refreshes the list control.
+define method .refreshList()
     !this.lstFiles.Clear()
     do !dir values !this.dirs
         !this.lstFiles.Add('[' + !dir.Name() + ']', !dir.Name())
-        !this.PopulateDir(!dir, 2)
+        !this.populateDir(!dir, 2)
         !init = object FILE(!dir.Name() + '\.init')
         if !init.Exists() then
             $M"$!init"
@@ -76,25 +86,15 @@ define method .Init()
     enddo
 endmethod
 
--- Track runs macro that is the same as event name with prefix "." dot.
-define method .Track(!form is FORM, !event is STRING)
-    do !dir values !this.dirs
-        !file = object FILE(!dir.Name() + '\.' + !event)
-        if !file.Exists() then
-            $M"$!file"
-        endif
-    enddo
-endmethod
-
--- PopulateDir populates macro files list from the specified directory.
-define method .PopulateDir(!dir is FILE, !indent is REAL)
+-- populateDir populates macro files list from the specified directory.
+define method .populateDir(!dir is FILE, !indent is REAL)
     do !f values !dir.SubDirs()
         !name = !f.Entry()
         skip if not !this.tglDots.val and !name.Substring(1, 1) eq '.'
         var !dtext compose space $!indent |$!name/|
         skip if !dtext.Empty()
         !this.lstFiles.Add(!dtext[1], !f.Name())
-        !this.PopulateDir(!f, !indent + 2)
+        !this.populateDir(!f, !indent + 4)
     enddo
     do !f values !dir.Files()
         !name = !f.Entry()
@@ -108,13 +108,23 @@ define method .PopulateDir(!dir is FILE, !indent is REAL)
     enddo
 endmethod
 
--- BeforePopupMenu is a callback method before opening right click menu.
-define method .BeforePopupMenu()
+-- track runs macro that is the same as event name with prefix "." dot.
+define method .track(!form is FORM, !event is STRING)
+    do !dir values !this.dirs
+        !file = object FILE(!dir.Name() + '\.' + !event)
+        if !file.Exists() then
+            $M"$!file"
+        endif
+    enddo
+endmethod
+
+-- beforePopupMenu is a callback method before opening right click menu.
+define method .beforePopupMenu()
     !this.menuIsOpen = true
 endmethod
 
--- OnClickList is a callback method on click a row in the list.
-define method .OnClickList(!gadget is GADGET, !select is STRING)
+-- onClickList is a callback method on click a row in the list control.
+define method .onClickList(!gadget is GADGET, !select is STRING)
     if !select ne 'SELECT' then
         return
     endif
@@ -122,49 +132,49 @@ define method .OnClickList(!gadget is GADGET, !select is STRING)
         !this.menuIsOpen = false
         return
     endif
-    !file = object FILE(|$!gadget|)
-    if not !file.Exists() then
+    !f = object FILE(|$!gadget|)
+    if not !f.Exists() then
         !this.Init()
         return
     endif
-    if !file.Type() eq 'FILE' then
-        if !file.Entry().MatchWild('*' + !this.runext) then
+    if !f.Type() eq 'FILE' then
+        if !f.Entry().MatchWild('*' + !this.runext) then
             !this.undo.Add()
-            $M"$!file" $!this.txtArgs.val
+            $M"$!f" $!this.txtArgs.val
             !this.undo.EndUndoable()
         else
-            syscom |$!this.editor "$!file"|
+            syscom |$!this.editor "$!f"|
         endif
     endif
 endmethod
 
--- RunFile runs the selection macro file in the list.
-define method .RunFile()
-    !file = object FILE(!this.lstFiles.Selection())
-    if Unset(!file) then
+-- RunFile runs the specified file.
+define method .RunFile(!file is STRING)
+    !f = object FILE(!file)
+    if Unset(!f) then
         return
     endif
-    if not !file.Exists() then
+    if not !f.Exists() then
         !this.Init()
         return
     endif
-    if !file.Type() ne 'FILE' then
+    if !f.Type() ne 'FILE' then
         return
     endif
     !this.undo.Add()
-    $M"$!file" $!this.txtArgs.val
+    $M"$!f" $!this.txtArgs.val
     !this.undo.Endundoable()
 endmethod
 
--- OpenFile opens the selection file in the list.
-define method .OpenFile()
-    !file = object FILE(!this.lstFiles.Selection())
-    if Unset(!file) then
+-- OpenFile opens the specified file.
+define method .OpenFile(!file is STRING)
+    !f = object FILE(!file)
+    if Unset(!f) then
         return
     endif
-    if not !file.Exists() then
+    if not !f.Exists() then
         !this.Init()
         return
     endif
-    syscom |$!this.editor "$!file"|
+    syscom |$!this.editor "$!f"|
 endmethod
