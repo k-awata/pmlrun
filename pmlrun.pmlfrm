@@ -39,6 +39,7 @@ define method .pmlrun()
     !menu.callback = '!this.beforePopupMenu()'
     !menu.Add('CALLBACK', 'Open...', '!this.OpenFile(!this.lstFiles.Selection())')
     !menu.Add('CALLBACK', 'Run', '!this.RunFile(!this.lstFiles.Selection())')
+    !menu.Add('CALLBACK', 'Copy as $$M', '!this.CopyAsCommand(!this.lstFiles.Selection())')
     !menu.Add('SEPARATOR')
     !menu.Add('CALLBACK', 'Refresh', '!this.Init()')
     !this.lstFiles.SetPopup(!menu)
@@ -177,4 +178,20 @@ define method .OpenFile(!file is STRING)
         return
     endif
     syscom |$!this.editor "$!f"|
+endmethod
+
+-- CopyAsCommand copies the specified file as $M command to the clipboard.
+define method .CopyAsCommand(!file is STRING)
+    !f = object FILE(!file)
+    if Unset(!f) then
+        return
+    endif
+    if not !f.Exists() then
+        !this.Init()
+        return
+    endif
+    if !f.Type() ne 'FILE' then
+        return
+    endif
+    syscom |echo $$M"$!f" || clip |
 endmethod
