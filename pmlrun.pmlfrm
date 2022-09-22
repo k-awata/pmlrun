@@ -193,5 +193,5 @@ define method .CopyAsCommand(!file is STRING)
     if !f.Type() ne 'FILE' then
         return
     endif
-    syscom |echo $$M"$!f" || clip |
+    syscom |echo $$M"$!f"|| clip|
 endmethod
